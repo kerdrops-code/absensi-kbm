@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Absensi Sekolah</title>
+<title>Absensi Sekolah Pondok</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -302,7 +302,8 @@
     <div class="card">
       <label for="teacherSelect">Nama Guru</label>
       <select id="teacherSelect"><option value="">-- pilih nama --</option></select>
-      <button id="btnToggleManageTeacher" class="btn-link">Kelola daftar guru ✎</button>
+      <button id="btnToggleManageTeacher" class="btn-link">Edit manual (cadangan offline) ✎</button>
+      <p id="syncStatusGuru" style="font-size:12px; color:var(--ink-soft); margin:6px 0 0;"></p>
       <div class="manage-panel hidden" id="manageTeacherPanel">
         <div class="manage-row">
           <input type="text" id="newTeacherInput" placeholder="Nama guru baru">
@@ -362,7 +363,11 @@
 
         <label for="kelasSelect">Kelas</label>
         <select id="kelasSelect"><option value="">-- pilih kelas --</option></select>
-        <button id="btnToggleManageKelas" class="btn-link">Kelola daftar kelas ✎</button>
+        <div style="display:flex; gap:14px; align-items:center; margin-top:6px;">
+          <button id="btnToggleManageKelas" class="btn-link" style="padding:0;">Kelola daftar kelas ✎</button>
+          <button id="btnSyncMasterSiswa" class="btn-link" style="padding:0;">🔄 Sinkron dari Spreadsheet</button>
+        </div>
+        <p id="syncStatusKbm" style="font-size:12px; color:var(--ink-soft); margin:6px 0 0;"></p>
         <div class="manage-panel hidden" id="manageKelasPanel">
           <div class="manage-row">
             <input type="text" id="newKelasInput" placeholder="Nama kelas baru, mis. XI TJKT 1">
@@ -371,9 +376,9 @@
           <ul class="name-list" id="kelasList"></ul>
         </div>
 
-        <button id="btnToggleManageStudents" class="btn-link hidden" style="margin-top:14px;">Kelola siswa kelas ini ✎</button>
+        <button id="btnToggleManageStudents" class="btn-link hidden" style="margin-top:14px;">Edit manual (cadangan offline) ✎</button>
         <div class="manage-panel hidden" id="manageStudentsPanel">
-          <label style="margin-top:0;">Daftar siswa (satu nama per baris)</label>
+          <label style="margin-top:0;">Daftar siswa (satu nama per baris) — ini cadangan offline, akan tertimpa saat Sinkron berhasil</label>
           <textarea id="studentsTextarea" placeholder="Ahmad Fauzi&#10;Bunga Lestari&#10;..."></textarea>
           <button id="btnSaveStudents" class="btn-small" style="margin-top:8px;">Simpan daftar siswa</button>
         </div>
@@ -388,6 +393,7 @@
           <div id="studentListWrap"></div>
         </div>
 
+        <div class="location-status" id="locationStatusKbm">📍 Mendeteksi lokasi...</div>
         <button id="btnSubmitKbm" class="btn btn-primary" style="margin-top:18px;" disabled>Simpan Absensi Kelas</button>
         <div id="submitStatusKbm"></div>
       </div>
@@ -419,12 +425,31 @@
   // bersama untuk kedua fitur (Drive utk Absensi Guru, Sheets utk KBM).
   // =====================================================================
   const GOOGLE_CLIENT_ID = '798149679164-jlv3on1vsht58k70sft20krhl3oqnpqg.apps.googleusercontent.com';
-  const COMBINED_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
+  // PENTING: scope Drive diperluas dari 'drive.file' ke 'drive' supaya guru lain
+  // (yang bukan pemilik/pembuat folder) tetap bisa menulis ke folder & spreadsheet
+  // yang SAMA selama folder/spreadsheet itu sudah di-share ke akun mereka (Editor).
+  const COMBINED_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
   const FOLDER_NAME = 'Absensi_Guru';
   const SPREADSHEET_NAME = 'Absensi_KBM';
+  // ID folder & spreadsheet TETAP (dibuat sekali oleh admin, lalu di-share ke semua
+  // guru dengan akses Editor). Isi ID di sini — ambil dari URL folder/spreadsheet
+  // di Google Drive (bagian setelah /folders/ atau /d/).
+  // Kosongkan ('') untuk kembali ke perilaku lama (tiap guru bikin file sendiri).
+  const FIXED_FOLDER_ID = '1mUnuIieLdw-NO9uLpINJQPf9kwWdG_Qa';
+  const FIXED_SPREADSHEET_ID = '1NSF_w-hJfgUGs8eWG4baBJbCP11ZdTd9TVb_E6qWDy8';
+  // Titik koordinat sekolah & radius toleransi untuk validasi lokasi absen
+  const SCHOOL_LAT = -7.596759;
+  const SCHOOL_LNG = 112.781900;
+  const MAX_RADIUS_M = 100;
   const REKAP_SHEET = 'Rekap';
-  const REKAP_HEADER = ['Tanggal','Waktu','Guru','Kelas','Hadir','Izin','Sakit','Alpha','Total'];
+  const MASTER_SHEET = 'Master Siswa';
+  const MASTER_HEADER = ['Kelas','Nama Siswa'];
+  const MASTER_GURU_SHEET = 'Master Guru';
+  const MASTER_GURU_HEADER = ['Nama Guru'];
+  const REKAP_HEADER = ['Tanggal','Waktu','Guru','Kelas','Hadir','Izin','Sakit','Alpha','Total','Latitude','Longitude','Jarak dari Sekolah (m)','Status Lokasi'];
   const KELAS_HEADER = ['Tanggal','Waktu','Guru','Nama Siswa','Status'];
+  const LOG_GURU_SHEET = 'Log Lokasi Guru';
+  const LOG_GURU_HEADER = ['Tanggal','Waktu','Guru','Jenis','Latitude','Longitude','Jarak dari Sekolah (m)','Status Lokasi'];
   const STATUS_LABEL = { H:'Hadir', I:'Izin', S:'Sakit', A:'Alpha' };
 
   let accessToken = null;
@@ -524,9 +549,13 @@
       ensureFolder().then(() => { folderReady = true; loadHistoryGuru(); tryGetLocation(); })
         .catch(e => showLoginError('Gagal mengakses Drive: ' + e.message));
     }
-    if (mode === 'kbm' && !spreadsheetReady) {
-      ensureSpreadsheet().then(() => { spreadsheetReady = true; loadHistoryKbm(); })
-        .catch(e => showLoginError('Gagal mengakses Sheets: ' + e.message));
+    if (mode === 'kbm') {
+      if (!spreadsheetReady) {
+        ensureSpreadsheet().then(() => { spreadsheetReady = true; loadHistoryKbm(); syncMasterSiswa(); })
+          .catch(e => showLoginError('Gagal mengakses Sheets: ' + e.message));
+      } else {
+        loadHistoryKbm();
+      }
     }
   }
   document.getElementById('btnModeGuru').addEventListener('click', () => setMode('guru'));
@@ -567,6 +596,16 @@
     try {
       await fetchAccountInfo();
       setMode('guru');
+      // Sinkronkan daftar guru & siswa dari Spreadsheet lebih awal, supaya
+      // dropdown Nama Guru sudah terisi walau masih di mode Absensi Guru.
+      ensureSpreadsheet().then(() => {
+        spreadsheetReady = true;
+        syncMasterGuru();
+        syncMasterSiswa();
+      }).catch(e => {
+        const statusEl = document.getElementById('syncStatusGuru');
+        if (statusEl) { statusEl.textContent = '❌ Gagal sinkron dari Spreadsheet: ' + e.message; statusEl.className = 'err'; }
+      });
     } catch(e){
       console.error(e);
       showLoginError('Terhubung, tapi gagal membaca info akun: ' + e.message);
@@ -603,6 +642,13 @@
      ===================================================================== */
 
   async function ensureFolder(){
+    if (FIXED_FOLDER_ID && FIXED_FOLDER_ID.indexOf('GANTI_DENGAN') !== 0) {
+      folderId = FIXED_FOLDER_ID;
+      const link = document.getElementById('driveFolderLink');
+      link.href = `https://drive.google.com/drive/folders/${folderId}`;
+      link.classList.remove('hidden');
+      return;
+    }
     const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Gagal mencari folder di Drive');
@@ -624,16 +670,70 @@
     link.classList.remove('hidden');
   }
 
+  function distanceMeters(lat1, lng1, lat2, lng2){
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  let locationOk = false;
+
+  function renderLocationStatus(elId){
+    const statusEl = document.getElementById(elId);
+    if (!statusEl) return;
+    if (!currentLocation) {
+      statusEl.textContent = '📍 Mendeteksi lokasi...';
+      statusEl.style.color = '';
+      return;
+    }
+    const d = Math.round(currentLocation.distance);
+    if (currentLocation.ok) {
+      statusEl.textContent = `📍 Lokasi terverifikasi (${d} m dari sekolah)`;
+      statusEl.style.color = 'var(--ok)';
+    } else {
+      statusEl.textContent = `📍 Di luar area sekolah (${d} m, maks ${MAX_RADIUS_M} m) — absen ditolak`;
+      statusEl.style.color = 'var(--danger)';
+    }
+  }
+
   function tryGetLocation(){
-    const statusEl = document.getElementById('locationStatus');
-    if (!navigator.geolocation) { statusEl.textContent = '📍 Lokasi tidak didukung perangkat ini'; return; }
+    ['locationStatus','locationStatusKbm'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '📍 Mendeteksi lokasi...';
+    });
+    if (!navigator.geolocation) {
+      ['locationStatus','locationStatusKbm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '📍 Lokasi tidak didukung perangkat ini — absen tidak bisa disimpan';
+      });
+      locationOk = false;
+      checkCanSubmitGuru(); checkCanSubmitKbm();
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       pos => {
-        currentLocation = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) };
-        statusEl.textContent = '📍 Lokasi terdeteksi';
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        const distance = distanceMeters(lat, lng, SCHOOL_LAT, SCHOOL_LNG);
+        const ok = distance <= MAX_RADIUS_M;
+        currentLocation = { lat: lat.toFixed(6), lng: lng.toFixed(6), distance, ok };
+        locationOk = ok;
+        renderLocationStatus('locationStatus');
+        renderLocationStatus('locationStatusKbm');
+        checkCanSubmitGuru(); checkCanSubmitKbm();
       },
-      () => { statusEl.textContent = '📍 Lokasi tidak tersedia (opsional, absensi tetap bisa disimpan)'; },
-      { timeout: 8000 }
+      () => {
+        ['locationStatus','locationStatusKbm'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.textContent = '📍 Gagal membaca lokasi (izinkan akses lokasi di browser) — absen tidak bisa disimpan'; el.style.color = 'var(--danger)'; }
+        });
+        currentLocation = null;
+        locationOk = false;
+        checkCanSubmitGuru(); checkCanSubmitKbm();
+      },
+      { timeout: 8000, enableHighAccuracy: true }
     );
   }
 
@@ -692,7 +792,7 @@
 
   function checkCanSubmitGuru(){
     const teacher = document.getElementById('teacherSelect').value;
-    document.getElementById('btnSubmitGuru').disabled = !(teacher && currentPhotoBlob);
+    document.getElementById('btnSubmitGuru').disabled = !(teacher && currentPhotoBlob && locationOk);
   }
 
   document.getElementById('btnSubmitGuru').addEventListener('click', submitAbsensiGuru);
@@ -702,6 +802,14 @@
     const statusEl = document.getElementById('submitStatusGuru');
     btn.disabled = true;
     statusEl.className = '';
+
+    if (!currentLocation || !currentLocation.ok) {
+      statusEl.textContent = '❌ Kamu terdeteksi di luar area sekolah. Absen tidak bisa disimpan.';
+      statusEl.className = 'err';
+      checkCanSubmitGuru();
+      return;
+    }
+
     statusEl.textContent = 'Menyimpan ke Drive...';
     try {
       const teacher = document.getElementById('teacherSelect').value;
@@ -710,17 +818,24 @@
       const waktu = now.toLocaleTimeString('id-ID', { hour12:false });
       const safeTeacher = teacher.replace(/[^a-zA-Z0-9]+/g, '_');
       const fileName = `${safeTeacher}_${tanggal}_${waktu.replace(/:/g,'-')}_${currentType}.jpg`;
+      const distRounded = Math.round(currentLocation.distance);
 
       const metadata = {
         name: fileName,
         parents: [folderId],
         properties: {
           nama: teacher, tanggal: tanggal, waktu: waktu, jenis: currentType,
-          lat: currentLocation ? currentLocation.lat : '',
-          lng: currentLocation ? currentLocation.lng : ''
+          lat: currentLocation.lat, lng: currentLocation.lng,
+          jarak_m: String(distRounded)
         }
       };
       await uploadToDrive(metadata, currentPhotoBlob);
+
+      // Catat juga ke Spreadsheet supaya gampang diaudit tanpa buka tiap file Drive
+      try {
+        await ensureLogGuruSheet();
+        await appendRows(LOG_GURU_SHEET, [[tanggal, waktu, teacher, currentType, currentLocation.lat, currentLocation.lng, distRounded, 'Sesuai area']]);
+      } catch(logErr){ console.error('Gagal mencatat log lokasi:', logErr); }
 
       statusEl.textContent = '✅ Absensi tersimpan ke Drive!';
       statusEl.className = 'ok';
@@ -733,6 +848,20 @@
       statusEl.className = 'err';
     } finally {
       checkCanSubmitGuru();
+    }
+  }
+
+  async function ensureLogGuruSheet(){
+    if (!spreadsheetId) return;
+    const titles = await getSheetTitles();
+    if (!titles.includes(LOG_GURU_SHEET)) {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_GURU_SHEET } } }] })
+      });
+      if (!res.ok) throw new Error('Gagal membuat tab ' + LOG_GURU_SHEET);
+      await writeHeaderRow(LOG_GURU_SHEET, LOG_GURU_HEADER);
     }
   }
 
@@ -908,6 +1037,13 @@
   });
 
   async function ensureSpreadsheet(){
+    if (FIXED_SPREADSHEET_ID && FIXED_SPREADSHEET_ID.indexOf('GANTI_DENGAN') !== 0) {
+      spreadsheetId = FIXED_SPREADSHEET_ID;
+      const link = document.getElementById('sheetLink');
+      link.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+      link.classList.remove('hidden');
+      return;
+    }
     const q = encodeURIComponent(`name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Gagal mencari spreadsheet di Drive');
@@ -928,6 +1064,103 @@
     const link = document.getElementById('sheetLink');
     link.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     link.classList.remove('hidden');
+  }
+
+  async function ensureMasterGuruSheet(){
+    const titles = await getSheetTitles();
+    if (!titles.includes(MASTER_GURU_SHEET)) {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_GURU_SHEET } } }] })
+      });
+      if (!res.ok) throw new Error('Gagal membuat tab ' + MASTER_GURU_SHEET);
+      await writeHeaderRow(MASTER_GURU_SHEET, MASTER_GURU_HEADER);
+    }
+  }
+
+  async function syncMasterGuru(){
+    const statusEl = document.getElementById('syncStatusGuru');
+    if (statusEl) { statusEl.textContent = 'Menyinkronkan daftar guru...'; statusEl.className = ''; }
+    try {
+      await ensureMasterGuruSheet();
+      const range = encodeURIComponent(`'${MASTER_GURU_SHEET}'!A2:A2000`);
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Gagal membaca tab ' + MASTER_GURU_SHEET);
+      const data = await res.json();
+      const names = [...new Set((data.values || []).map(r => (r[0]||'').trim()).filter(Boolean))];
+
+      if (names.length > 0) {
+        saveTeachers(names);
+        renderTeacherOptions();
+      }
+      if (statusEl) {
+        if (names.length > 0) {
+          statusEl.textContent = `✅ ${names.length} nama guru tersinkron dari Spreadsheet.`;
+          statusEl.className = 'ok';
+        } else {
+          statusEl.textContent = 'ℹ️ Tab "Master Guru" masih kosong. Isi kolom Nama Guru di Spreadsheet, lalu masuk ulang.';
+        }
+      }
+    } catch(err){
+      console.error(err);
+      if (statusEl) { statusEl.textContent = '❌ Gagal sinkron guru (pakai data offline terakhir): ' + err.message; statusEl.className = 'err'; }
+    }
+  }
+
+  async function ensureMasterSheet(){
+    const titles = await getSheetTitles();
+    if (!titles.includes(MASTER_SHEET)) {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_SHEET } } }] })
+      });
+      if (!res.ok) throw new Error('Gagal membuat tab ' + MASTER_SHEET);
+      await writeHeaderRow(MASTER_SHEET, MASTER_HEADER);
+    }
+  }
+
+  async function syncMasterSiswa(){
+    const statusEl = document.getElementById('syncStatusKbm');
+    if (statusEl) { statusEl.textContent = 'Menyinkronkan data siswa...'; statusEl.className = ''; }
+    try {
+      await ensureMasterSheet();
+      const range = encodeURIComponent(`'${MASTER_SHEET}'!A2:B10000`);
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Gagal membaca tab ' + MASTER_SHEET);
+      const data = await res.json();
+      const rows = (data.values || []).filter(r => r[0] && r[1]);
+
+      const map = {};
+      rows.forEach(([kelas, nama]) => {
+        const k = kelas.trim(), n = nama.trim();
+        if (!k || !n) return;
+        if (!map[k]) map[k] = [];
+        if (!map[k].includes(n)) map[k].push(n);
+      });
+
+      if (Object.keys(map).length > 0) {
+        saveClasses(Object.keys(map));
+        saveStudentsMap(map);
+      }
+      renderKelasOptions();
+      const kelasNow = document.getElementById('kelasSelect').value;
+      if (kelasNow) loadStudentsForSelectedKelas();
+
+      if (statusEl) {
+        if (Object.keys(map).length > 0) {
+          statusEl.textContent = `✅ Tersinkron: ${Object.keys(map).length} kelas dari Spreadsheet.`;
+          statusEl.className = 'ok';
+        } else {
+          statusEl.textContent = 'ℹ️ Tab "Master Siswa" masih kosong. Isi kolom Kelas & Nama Siswa di Spreadsheet, lalu klik Sinkron lagi.';
+          statusEl.className = '';
+        }
+      }
+    } catch(err){
+      console.error(err);
+      if (statusEl) { statusEl.textContent = '❌ Gagal sinkron (pakai data offline terakhir): ' + err.message; statusEl.className = 'err'; }
+    }
   }
 
   async function getSheetTitles(){
@@ -972,7 +1205,7 @@
   function checkCanSubmitKbm(){
     const teacher = document.getElementById('teacherSelect').value;
     const kelas = document.getElementById('kelasSelect').value;
-    document.getElementById('btnSubmitKbm').disabled = !(teacher && kelas && currentStudents.length > 0);
+    document.getElementById('btnSubmitKbm').disabled = !(teacher && kelas && currentStudents.length > 0 && locationOk);
   }
   document.getElementById('kelasSelect').addEventListener('change', loadStudentsForSelectedKelas);
   document.getElementById('btnSubmitKbm').addEventListener('click', submitAbsensiKbm);
@@ -982,6 +1215,14 @@
     const statusEl = document.getElementById('submitStatusKbm');
     btn.disabled = true;
     statusEl.className = '';
+
+    if (!currentLocation || !currentLocation.ok) {
+      statusEl.textContent = '❌ Kamu terdeteksi di luar area sekolah. Absen kelas tidak bisa disimpan.';
+      statusEl.className = 'err';
+      checkCanSubmitKbm();
+      return;
+    }
+
     statusEl.textContent = 'Menyimpan ke Sheets...';
     try {
       const teacher = document.getElementById('teacherSelect').value;
@@ -989,13 +1230,14 @@
       const now = new Date();
       const tanggal = now.toLocaleDateString('sv-SE');
       const waktu = now.toLocaleTimeString('id-ID', { hour12:false });
+      const distRounded = Math.round(currentLocation.distance);
 
       await ensureKelasSheet(kelas);
       const detailRows = currentStudents.map(s => [tanggal, waktu, teacher, s.name, STATUS_LABEL[s.status]]);
       await appendRows(kelas, detailRows);
 
       const c = tallyStatuses();
-      await appendRows(REKAP_SHEET, [[tanggal, waktu, teacher, kelas, c.H, c.I, c.S, c.A, currentStudents.length]]);
+      await appendRows(REKAP_SHEET, [[tanggal, waktu, teacher, kelas, c.H, c.I, c.S, c.A, currentStudents.length, currentLocation.lat, currentLocation.lng, distRounded, 'Sesuai area']]);
 
       statusEl.textContent = '✅ Absensi kelas tersimpan!';
       statusEl.className = 'ok';
@@ -1057,6 +1299,11 @@
 
   document.getElementById('btnToggleManageKelas').addEventListener('click', () => {
     document.getElementById('manageKelasPanel').classList.toggle('hidden');
+  });
+  document.getElementById('btnSyncMasterSiswa').addEventListener('click', () => {
+    if (!spreadsheetReady) { showLoginError('Spreadsheet belum siap, tunggu sebentar lalu coba lagi.'); return; }
+    syncMasterSiswa();
+    syncMasterGuru();
   });
   document.getElementById('btnConfirmAddKelas').addEventListener('click', () => {
     const input = document.getElementById('newKelasInput');
