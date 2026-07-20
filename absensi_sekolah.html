@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Absensi Sekolah</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --paper:#F6F1E6;
+    --card:#FFFDF8;
+    --ink:#22302B;
+    --ink-soft:#66756F;
+    --teal:#145C4B;
+    --teal-dark:#0E4438;
+    --gold:#B8912F;
+    --stamp:#B23A2E;
+    --border:#E6DCC3;
+    --danger:#B23A2E;
+    --ok:#1F7A4D;
+    --sick:#8A5A22;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(20,92,75,0.05), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(184,145,47,0.06), transparent 45%);
+    color: var(--ink);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+  }
+  h1,h2{ font-family:'Fraunces', serif; margin:0; }
+  .container{ max-width: 460px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .ledger-header{ padding: 10px 4px 22px; }
+  .eyebrow{
+    font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gold); font-weight: 600; margin-bottom: 2px;
+  }
+  .ledger-header h1{ font-size: 30px; font-weight: 700; color: var(--teal-dark); }
+  .clock-row{
+    margin-top: 8px; font-size: 13px; color: var(--ink-soft);
+    display:flex; align-items:center; gap:8px;
+  }
+  .clock-row .mono{ font-variant-numeric: tabular-nums; font-weight:600; color:var(--ink); }
+  .clock-row .dot{ opacity:0.5; }
+
+  .card{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(20,40,30,0.05);
+  }
+  .hidden{ display:none !important; }
+
+  p.desc{ color: var(--ink-soft); font-size: 14px; line-height:1.5; margin: 8px 0 18px; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding: 13px 18px; border-radius: 12px; border: none;
+    font-family:'Plus Jakarta Sans', sans-serif; font-weight:600; font-size:15px;
+    cursor:pointer; transition: transform .12s ease, box-shadow .12s ease, background .15s ease;
+  }
+  .btn:active{ transform: scale(0.98); }
+  .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .btn:focus-visible{ outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  .btn-primary{ background: var(--teal); color:#fff; }
+  .btn-primary:hover:not(:disabled){ background: var(--teal-dark); }
+
+  .btn-google{ background:#fff; color:#3c4043; border:1px solid #dcdcdc; }
+  .btn-google svg{ width:18px; height:18px; }
+
+  .btn-link{
+    background:none; border:none; color: var(--teal-dark); font-size:13px;
+    font-weight:600; cursor:pointer; padding:6px 0; text-decoration:underline;
+    text-underline-offset:3px;
+  }
+  .btn-link:focus-visible{ outline:2px solid var(--gold); }
+
+  .account-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; color: var(--ink-soft); margin-bottom: 16px;
+    border-bottom: 1px dashed var(--border); padding-bottom: 12px;
+  }
+  .account-bar span{ font-weight:600; color: var(--ink); }
+
+  label{ display:block; font-size:12px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.05em; color: var(--ink-soft); margin: 16px 0 6px; }
+  label:first-of-type{ margin-top:0; }
+
+  select, input[type="text"], textarea{
+    width:100%; padding: 11px 12px; border-radius: 10px; border:1px solid var(--border);
+    background:#fff; font-family:'Plus Jakarta Sans', sans-serif; font-size:15px; color: var(--ink);
+  }
+  textarea{ min-height:110px; resize:vertical; line-height:1.5; }
+  select:focus-visible, input:focus-visible, textarea:focus-visible{ outline: 2px solid var(--gold); outline-offset:1px; }
+
+  .toggle-group{ display:flex; gap:8px; }
+  .toggle-btn{
+    flex:1; padding:11px 10px; border-radius: 10px 10px 3px 3px; border:1px solid var(--border);
+    background:#F0EAD9; color: var(--ink-soft); font-weight:700; font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .toggle-btn.active{ background: var(--teal); color:#fff; border-color: var(--teal); }
+  .toggle-btn:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+  /* Mode switcher (Absensi Guru <-> Absensi KBM) */
+  .mode-switcher{ display:flex; gap:8px; margin-bottom:16px; }
+  .mode-btn{
+    flex:1; padding:13px 10px; border-radius: 14px; border:1px solid var(--border);
+    background:#fff; color: var(--ink-soft); font-weight:700; font-size:13px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:2px; text-align:center;
+  }
+  .mode-btn .mode-icon{ font-size:19px; }
+  .mode-btn.active{ background: var(--teal-dark); color:#fff; border-color: var(--teal-dark); }
+  .mode-btn:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+  .photo-box{
+    margin-top:6px; border: 2px dashed var(--border); border-radius:14px;
+    padding: 30px 12px; text-align:center; color: var(--ink-soft); cursor:pointer;
+    font-size:14px; font-weight:600; background: rgba(20,92,75,0.02);
+    position:relative;
+  }
+  .photo-box:hover{ border-color: var(--teal); color: var(--teal-dark); }
+  .photo-box .cam-icon{ font-size:26px; display:block; margin-bottom:6px; }
+
+  .photo-preview-wrap{ position:relative; margin-top:8px; }
+  .photo-preview{ width:100%; border-radius:14px; display:block; border:1px solid var(--border); }
+  .btn-retake{
+    position:absolute; top:8px; right:8px; background:rgba(34,48,43,0.75); color:#fff;
+    border:none; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer;
+  }
+
+  .location-status{ margin-top:10px; font-size:12px; color: var(--ink-soft); }
+
+  .manage-panel{ margin-top:8px; padding:12px; background:#F0EAD9; border-radius:12px; }
+  .manage-row{ display:flex; gap:8px; }
+  .manage-row input{ flex:1; }
+  .btn-small{
+    padding: 10px 14px; border-radius:10px; border:none; background: var(--teal); color:#fff;
+    font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .name-list{ list-style:none; margin:10px 0 0; padding:0; }
+  .name-list li{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 4px; font-size:14px; border-bottom:1px solid var(--border);
+  }
+  .name-list li:last-child{ border-bottom:none; }
+  .btn-remove{
+    background:none; border:none; color: var(--danger); font-size:16px; cursor:pointer; line-height:1;
+    padding:2px 6px;
+  }
+  .empty-note{ color:var(--ink-soft); font-size:13px; padding:4px 0; }
+
+  .legend{ font-size:11px; color: var(--ink-soft); margin: -2px 0 8px; }
+  .legend b{ color: var(--ink); }
+
+  .student-toolbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; }
+  .student-summary{ font-size:12px; color: var(--ink-soft); }
+  .student-summary b{ color: var(--ink); }
+
+  #studentListWrap{
+    max-height:360px; overflow-y:auto; margin-top:10px;
+    border:1px solid var(--border); border-radius:12px; padding:2px 12px; background:#fff;
+  }
+  .student-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:9px 2px; border-bottom:1px solid var(--border);
+  }
+  .student-row:last-child{ border-bottom:none; }
+  .student-name{
+    font-size:14px; font-weight:600; color: var(--ink); flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .status-toggle{ display:flex; gap:4px; flex-shrink:0; }
+  .stat-btn{
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+    background:#F0EAD9; color: var(--ink-soft); font-weight:800; font-size:12px; cursor:pointer;
+  }
+  .stat-btn:focus-visible{ outline:2px solid var(--gold); outline-offset:1px; }
+  .stat-btn.active-h{ background: var(--teal); color:#fff; border-color: var(--teal); }
+  .stat-btn.active-i{ background: var(--gold); color:#fff; border-color: var(--gold); }
+  .stat-btn.active-s{ background: var(--sick); color:#fff; border-color: var(--sick); }
+  .stat-btn.active-a{ background: var(--danger); color:#fff; border-color: var(--danger); }
+
+  #submitStatusGuru, #submitStatusKbm{ margin-top:10px; font-size:13px; font-weight:600; min-height:18px; }
+  #submitStatusGuru.ok, #submitStatusKbm.ok{ color: var(--ok); }
+  #submitStatusGuru.err, #submitStatusKbm.err{ color: var(--danger); }
+
+  .history-summary{ font-size:13px; color: var(--ink-soft); margin-bottom:12px; }
+  .history-summary b{ color: var(--ink); }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;
+    color: var(--ink-soft); padding: 6px 4px; border-bottom:2px solid var(--border); }
+  td{ padding: 9px 4px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .badge{
+    display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:999px;
+    font-size:10px; font-weight:800; margin:1px 2px 1px 0;
+  }
+  .badge-masuk{ background:#DCEEE6; color: var(--teal-dark); }
+  .badge-pulang{ background:#F3E6D9; color:#8A5A22; }
+  .badge-h{ background:#DCEEE6; color: var(--teal-dark); }
+  .badge-i{ background:#F6ECC9; color:#8A6D1C; }
+  .badge-s{ background:#F3E6D9; color: var(--sick); }
+  .badge-a{ background:#FBEAE7; color: var(--danger); }
+  .history-empty{ text-align:center; color: var(--ink-soft); font-size:13px; padding: 18px 6px; }
+  .row-link{ color: var(--teal-dark); font-weight:700; text-decoration:none; font-size:12px; }
+  .row-link:hover{ text-decoration:underline; }
+
+  .error-box{
+    background:#FBEAE7; border:1px solid #EFC4BC; color:#8A2E22; border-radius:10px;
+    padding:10px 12px; font-size:13px; margin-top:12px;
+  }
+
+  .setup-hint{ font-size:12px; color: var(--ink-soft); margin-top:14px; line-height:1.5; }
+  .setup-hint code{ background:#F0EAD9; padding:1px 5px; border-radius:5px; }
+
+  /* Stamp overlay */
+  #stampOverlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; z-index:9999;
+  }
+  #stampOverlay .stamp{
+    border: 5px solid var(--stamp); color: var(--stamp);
+    border-radius: 14px; padding: 20px 34px;
+    font-family:'Fraunces', serif; font-weight:700; font-size:28px;
+    text-transform:uppercase; letter-spacing:3px;
+    transform: rotate(-8deg) scale(0.5); opacity:0;
+    background: rgba(255,255,255,0.001);
+  }
+  #stampOverlay.show .stamp{ animation: stampIn 1.15s cubic-bezier(.2,1.5,.4,1) forwards; }
+  @keyframes stampIn{
+    0%{ transform: rotate(-8deg) scale(2.3); opacity:0; }
+    40%{ transform: rotate(-8deg) scale(0.9); opacity:1; }
+    58%{ transform: rotate(-8deg) scale(1.06); }
+    72%{ transform: rotate(-8deg) scale(0.98); }
+    100%{ transform: rotate(-8deg) scale(1); opacity:1; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    #stampOverlay.show .stamp{ animation:none; opacity:1; transform: rotate(-8deg) scale(1); }
+    .btn, .toggle-btn, .mode-btn{ transition:none; }
+  }
+
+  @media (max-width: 380px){
+    .ledger-header h1{ font-size:26px; }
+    .card{ padding:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="ledger-header">
+    <div class="eyebrow" id="greetText">Selamat Pagi,</div>
+    <h1>Absensi Sekolah</h1>
+    <div class="clock-row">
+      <span id="dateText">-</span>
+      <span class="dot">•</span>
+      <span id="clockText" class="mono">-</span>
+    </div>
+  </header>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>Masuk untuk mulai</h2>
+    <p class="desc">Satu akun Google (admin/perangkat) untuk dua fitur: absen kehadiran guru (foto, tersimpan ke Drive) dan absen kehadiran siswa per kelas (tersimpan ke Sheets). Guru tinggal pilih nama dari dropdown.</p>
+    <button id="btnSignIn" class="btn btn-google">
+      <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.3-.1-2.7-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3c-8.4 0-15.6 4.9-19 11.9z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14-5l-6.5-5.4C29.5 36.2 26.9 37 24 37c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5C9.5 40 16.1 45 24 45z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.6l6.5 5.4C39.9 37.6 45 32 45 24c0-1.3-.1-2.7-.4-3.9z"/></svg>
+      Masuk dengan Google
+    </button>
+    <div id="loginError" class="error-box hidden"></div>
+    <p class="setup-hint">Belum siap? Halaman ini butuh Client ID Google Cloud (lihat panduan setup) dan harus dibuka lewat alamat <code>http(s)://</code>, bukan file lokal.</p>
+  </div>
+
+  <!-- APP (setelah login) -->
+  <div class="hidden" id="appArea">
+
+    <div class="account-bar">
+      <span id="accountEmail">-</span>
+      <button id="btnSignOut" class="btn-link">Keluar</button>
+    </div>
+
+    <div class="mode-switcher">
+      <button class="mode-btn active" id="btnModeGuru" data-mode="guru">
+        <span class="mode-icon">📷</span> Absensi Guru
+      </button>
+      <button class="mode-btn" id="btnModeKbm" data-mode="kbm">
+        <span class="mode-icon">📋</span> Absensi KBM
+      </button>
+    </div>
+
+    <!-- Nama guru: dipakai bersama oleh kedua mode -->
+    <div class="card">
+      <label for="teacherSelect">Nama Guru</label>
+      <select id="teacherSelect"><option value="">-- pilih nama --</option></select>
+      <button id="btnToggleManageTeacher" class="btn-link">Kelola daftar guru ✎</button>
+      <div class="manage-panel hidden" id="manageTeacherPanel">
+        <div class="manage-row">
+          <input type="text" id="newTeacherInput" placeholder="Nama guru baru">
+          <button id="btnConfirmAddTeacher" class="btn-small">Tambah</button>
+        </div>
+        <ul class="name-list" id="teacherList"></ul>
+      </div>
+    </div>
+
+    <!-- ===================== MODE: ABSENSI GURU ===================== -->
+    <div id="guruPanel">
+      <div class="card">
+        <h2 style="font-size:19px;">Form Absensi Guru</h2>
+
+        <label>Jenis Absensi</label>
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-type="masuk">🌅 Absen Masuk</button>
+          <button class="toggle-btn" data-type="pulang">🌇 Absen Pulang</button>
+        </div>
+
+        <label>Foto Bukti Kehadiran</label>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" class="hidden">
+        <div class="photo-box" id="photoBox">
+          <span class="cam-icon">📷</span>
+          Tap untuk ambil foto
+        </div>
+        <div class="photo-preview-wrap hidden" id="photoPreviewWrap">
+          <img id="photoPreview" class="photo-preview" alt="Pratinjau foto absensi">
+          <button class="btn-retake" id="btnRetake">Ambil ulang</button>
+        </div>
+
+        <div class="location-status" id="locationStatus">📍 Mendeteksi lokasi...</div>
+
+        <button id="btnSubmitGuru" class="btn btn-primary" style="margin-top:18px;" disabled>Simpan Absensi</button>
+        <div id="submitStatusGuru"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h2 style="font-size:19px;">Riwayat Hari Ini</h2>
+          <button id="btnRefreshHistoryGuru" class="btn-link">🔄 Refresh</button>
+        </div>
+        <div class="history-summary" id="historySummaryGuru"></div>
+        <table>
+          <thead><tr><th>Waktu</th><th>Nama</th><th>Jenis</th><th>Foto</th></tr></thead>
+          <tbody id="historyBodyGuru"></tbody>
+        </table>
+        <div class="history-empty hidden" id="historyEmptyGuru">Belum ada absensi hari ini. Jadilah yang pertama!</div>
+        <a href="#" id="driveFolderLink" class="row-link hidden" target="_blank" style="display:inline-block; margin-top:14px;">📁 Buka folder di Google Drive</a>
+      </div>
+    </div>
+
+    <!-- ===================== MODE: ABSENSI KBM ===================== -->
+    <div id="kbmPanel">
+      <div class="card">
+        <h2 style="font-size:19px;">Jurnal Kelas</h2>
+
+        <label for="kelasSelect">Kelas</label>
+        <select id="kelasSelect"><option value="">-- pilih kelas --</option></select>
+        <button id="btnToggleManageKelas" class="btn-link">Kelola daftar kelas ✎</button>
+        <div class="manage-panel hidden" id="manageKelasPanel">
+          <div class="manage-row">
+            <input type="text" id="newKelasInput" placeholder="Nama kelas baru, mis. XI TJKT 1">
+            <button id="btnConfirmAddKelas" class="btn-small">Tambah</button>
+          </div>
+          <ul class="name-list" id="kelasList"></ul>
+        </div>
+
+        <button id="btnToggleManageStudents" class="btn-link hidden" style="margin-top:14px;">Kelola siswa kelas ini ✎</button>
+        <div class="manage-panel hidden" id="manageStudentsPanel">
+          <label style="margin-top:0;">Daftar siswa (satu nama per baris)</label>
+          <textarea id="studentsTextarea" placeholder="Ahmad Fauzi&#10;Bunga Lestari&#10;..."></textarea>
+          <button id="btnSaveStudents" class="btn-small" style="margin-top:8px;">Simpan daftar siswa</button>
+        </div>
+
+        <div id="studentSection" class="hidden">
+          <label style="margin-top:20px;">Status Kehadiran Siswa</label>
+          <div class="legend"><b>H</b> Hadir &nbsp; <b>I</b> Izin &nbsp; <b>S</b> Sakit &nbsp; <b>A</b> Alpha</div>
+          <div class="student-toolbar">
+            <span class="student-summary" id="studentSummary">-</span>
+            <button id="btnMarkAllPresent" class="btn-link">Tandai semua Hadir</button>
+          </div>
+          <div id="studentListWrap"></div>
+        </div>
+
+        <button id="btnSubmitKbm" class="btn btn-primary" style="margin-top:18px;" disabled>Simpan Absensi Kelas</button>
+        <div id="submitStatusKbm"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h2 style="font-size:19px;">Riwayat Hari Ini</h2>
+          <button id="btnRefreshHistoryKbm" class="btn-link">🔄 Refresh</button>
+        </div>
+        <div class="history-summary" id="historySummaryKbm"></div>
+        <table>
+          <thead><tr><th>Waktu</th><th>Kelas</th><th>Guru</th><th>Rekap</th></tr></thead>
+          <tbody id="historyBodyKbm"></tbody>
+        </table>
+        <div class="history-empty hidden" id="historyEmptyKbm">Belum ada kelas yang diabsen hari ini.</div>
+        <a href="#" id="sheetLink" class="row-link hidden" target="_blank" style="display:inline-block; margin-top:14px;">📊 Buka Spreadsheet di Google Drive</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="stampOverlay"><div class="stamp"><span class="stamp-text">HADIR</span></div></div>
+
+<script>
+  // =====================================================================
+  // KONFIGURASI — ganti nilai ini setelah membuat OAuth Client ID di
+  // Google Cloud Console (lihat panduan setup). Client ID ini dipakai
+  // bersama untuk kedua fitur (Drive utk Absensi Guru, Sheets utk KBM).
+  // =====================================================================
+  const GOOGLE_CLIENT_ID = '798149679164-jlv3on1vsht58k70sft20krhl3oqnpqg.apps.googleusercontent.com';
+  const COMBINED_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
+  const FOLDER_NAME = 'Absensi_Guru';
+  const SPREADSHEET_NAME = 'Absensi_KBM';
+  const REKAP_SHEET = 'Rekap';
+  const REKAP_HEADER = ['Tanggal','Waktu','Guru','Kelas','Hadir','Izin','Sakit','Alpha','Total'];
+  const KELAS_HEADER = ['Tanggal','Waktu','Guru','Nama Siswa','Status'];
+  const STATUS_LABEL = { H:'Hadir', I:'Izin', S:'Sakit', A:'Alpha' };
+
+  let accessToken = null;
+  let tokenClient = null;
+  let currentMode = 'guru';
+
+  // Absensi Guru state
+  let folderId = null;
+  let folderReady = false;
+  let currentPhotoBlob = null;
+  let currentType = 'masuk';
+  let currentLocation = null;
+
+  // Absensi KBM state
+  let spreadsheetId = null;
+  let spreadsheetReady = false;
+  let currentStudents = []; // [{name, status}]
+
+  // ---------------------------------------------------------------------
+  // Jam & sapaan
+  // ---------------------------------------------------------------------
+  function updateClock(){
+    const now = new Date();
+    const h = now.getHours();
+    let greet = 'Selamat Malam,';
+    if (h >= 4 && h < 11) greet = 'Selamat Pagi,';
+    else if (h >= 11 && h < 15) greet = 'Selamat Siang,';
+    else if (h >= 15 && h < 18) greet = 'Selamat Sore,';
+    document.getElementById('greetText').textContent = greet;
+    document.getElementById('clockText').textContent = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    document.getElementById('dateText').textContent = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function authHeaders(){ return { Authorization: 'Bearer ' + accessToken }; }
+
+  // ---------------------------------------------------------------------
+  // Roster guru — dipakai bersama oleh kedua mode
+  // ---------------------------------------------------------------------
+  function getTeachers(){
+    try { return JSON.parse(localStorage.getItem('absensi_teachers') || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveTeachers(list){ localStorage.setItem('absensi_teachers', JSON.stringify(list)); }
+
+  function renderTeacherOptions(){
+    const list = getTeachers();
+    const select = document.getElementById('teacherSelect');
+    const current = select.value;
+    select.innerHTML = '<option value="">-- pilih nama --</option>' +
+      list.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    if (list.includes(current)) select.value = current;
+
+    const ul = document.getElementById('teacherList');
+    ul.innerHTML = list.length ? list.map(n =>
+      `<li>${escapeHtml(n)}<button class="btn-remove" data-name="${escapeHtml(n)}" aria-label="Hapus ${escapeHtml(n)}">×</button></li>`
+    ).join('') : '<li class="empty-note">Belum ada nama guru. Tambahkan di atas.</li>';
+  }
+
+  document.getElementById('btnToggleManageTeacher').addEventListener('click', () => {
+    document.getElementById('manageTeacherPanel').classList.toggle('hidden');
+  });
+  document.getElementById('btnConfirmAddTeacher').addEventListener('click', () => {
+    const input = document.getElementById('newTeacherInput');
+    const name = input.value.trim();
+    if (!name) return;
+    const list = getTeachers();
+    if (!list.includes(name)) { list.push(name); saveTeachers(list); renderTeacherOptions(); }
+    input.value = '';
+  });
+  document.getElementById('teacherList').addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-remove')) {
+      const name = e.target.dataset.name;
+      saveTeachers(getTeachers().filter(n => n !== name));
+      renderTeacherOptions();
+    }
+  });
+  document.getElementById('teacherSelect').addEventListener('change', () => {
+    checkCanSubmitGuru();
+    checkCanSubmitKbm();
+  });
+
+  // ---------------------------------------------------------------------
+  // Saklar mode
+  // ---------------------------------------------------------------------
+  function setMode(mode){
+    currentMode = mode;
+    document.getElementById('btnModeGuru').classList.toggle('active', mode === 'guru');
+    document.getElementById('btnModeKbm').classList.toggle('active', mode === 'kbm');
+    document.getElementById('guruPanel').classList.toggle('hidden', mode !== 'guru');
+    document.getElementById('kbmPanel').classList.toggle('hidden', mode !== 'kbm');
+
+    if (mode === 'guru' && !folderReady) {
+      ensureFolder().then(() => { folderReady = true; loadHistoryGuru(); tryGetLocation(); })
+        .catch(e => showLoginError('Gagal mengakses Drive: ' + e.message));
+    }
+    if (mode === 'kbm' && !spreadsheetReady) {
+      ensureSpreadsheet().then(() => { spreadsheetReady = true; loadHistoryKbm(); })
+        .catch(e => showLoginError('Gagal mengakses Sheets: ' + e.message));
+    }
+  }
+  document.getElementById('btnModeGuru').addEventListener('click', () => setMode('guru'));
+  document.getElementById('btnModeKbm').addEventListener('click', () => setMode('kbm'));
+
+  // ---------------------------------------------------------------------
+  // Google Sign-In
+  // ---------------------------------------------------------------------
+  function initGoogle(){
+    if (typeof google === 'undefined' || !google.accounts) {
+      showLoginError('Gagal memuat layanan Google. Periksa koneksi internet, lalu muat ulang halaman.');
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: COMBINED_SCOPE,
+      callback: (resp) => {
+        if (resp.error) {
+          showLoginError('Masuk dibatalkan atau gagal (' + resp.error + '). Coba lagi.');
+          return;
+        }
+        accessToken = resp.access_token;
+        document.getElementById('loginError').classList.add('hidden');
+        onSignedIn();
+      }
+    });
+  }
+
+  function showLoginError(msg){
+    const box = document.getElementById('loginError');
+    box.textContent = msg;
+    box.classList.remove('hidden');
+  }
+
+  async function onSignedIn(){
+    document.getElementById('loginCard').classList.add('hidden');
+    document.getElementById('appArea').classList.remove('hidden');
+    try {
+      await fetchAccountInfo();
+      setMode('guru');
+    } catch(e){
+      console.error(e);
+      showLoginError('Terhubung, tapi gagal membaca info akun: ' + e.message);
+    }
+  }
+
+  async function fetchAccountInfo(){
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: authHeaders() });
+    if (!res.ok) throw new Error('Tidak bisa membaca info akun');
+    const data = await res.json();
+    document.getElementById('accountEmail').textContent = data.email || 'Akun Google';
+  }
+
+  document.getElementById('btnSignOut').addEventListener('click', () => {
+    if (accessToken && google.accounts) {
+      google.accounts.oauth2.revoke(accessToken, () => {});
+    }
+    accessToken = null;
+    folderId = null; folderReady = false;
+    spreadsheetId = null; spreadsheetReady = false;
+    document.getElementById('appArea').classList.add('hidden');
+    document.getElementById('loginCard').classList.remove('hidden');
+  });
+
+  function showStamp(text){
+    const overlay = document.getElementById('stampOverlay');
+    overlay.querySelector('.stamp-text').textContent = text;
+    overlay.classList.add('show');
+    setTimeout(() => overlay.classList.remove('show'), 1400);
+  }
+
+  /* =====================================================================
+     MODE: ABSENSI GURU (foto -> Google Drive)
+     ===================================================================== */
+
+  async function ensureFolder(){
+    const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Gagal mencari folder di Drive');
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      folderId = data.files[0].id;
+    } else {
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+      });
+      if (!createRes.ok) throw new Error('Gagal membuat folder di Drive');
+      const created = await createRes.json();
+      folderId = created.id;
+    }
+    const link = document.getElementById('driveFolderLink');
+    link.href = `https://drive.google.com/drive/folders/${folderId}`;
+    link.classList.remove('hidden');
+  }
+
+  function tryGetLocation(){
+    const statusEl = document.getElementById('locationStatus');
+    if (!navigator.geolocation) { statusEl.textContent = '📍 Lokasi tidak didukung perangkat ini'; return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentLocation = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) };
+        statusEl.textContent = '📍 Lokasi terdeteksi';
+      },
+      () => { statusEl.textContent = '📍 Lokasi tidak tersedia (opsional, absensi tetap bisa disimpan)'; },
+      { timeout: 8000 }
+    );
+  }
+
+  function processImageFile(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Gagal membaca file foto'));
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Gagal memuat foto'));
+        img.onload = () => {
+          const maxWidth = 1080;
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = Math.round(height * (maxWidth / width));
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob); else reject(new Error('Gagal memproses foto'));
+          }, 'image/jpeg', 0.78);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('photoBox').addEventListener('click', () => document.getElementById('photoInput').click());
+  document.getElementById('btnRetake').addEventListener('click', () => document.getElementById('photoInput').click());
+  document.getElementById('photoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const compressed = await processImageFile(file);
+      currentPhotoBlob = compressed;
+      const url = URL.createObjectURL(compressed);
+      document.getElementById('photoPreview').src = url;
+      document.getElementById('photoPreviewWrap').classList.remove('hidden');
+      document.getElementById('photoBox').classList.add('hidden');
+    } catch(err){
+      alert('Gagal memproses foto: ' + err.message);
+    }
+    checkCanSubmitGuru();
+  });
+
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentType = btn.dataset.type;
+    });
+  });
+
+  function checkCanSubmitGuru(){
+    const teacher = document.getElementById('teacherSelect').value;
+    document.getElementById('btnSubmitGuru').disabled = !(teacher && currentPhotoBlob);
+  }
+
+  document.getElementById('btnSubmitGuru').addEventListener('click', submitAbsensiGuru);
+
+  async function submitAbsensiGuru(){
+    const btn = document.getElementById('btnSubmitGuru');
+    const statusEl = document.getElementById('submitStatusGuru');
+    btn.disabled = true;
+    statusEl.className = '';
+    statusEl.textContent = 'Menyimpan ke Drive...';
+    try {
+      const teacher = document.getElementById('teacherSelect').value;
+      const now = new Date();
+      const tanggal = now.toLocaleDateString('sv-SE');
+      const waktu = now.toLocaleTimeString('id-ID', { hour12:false });
+      const safeTeacher = teacher.replace(/[^a-zA-Z0-9]+/g, '_');
+      const fileName = `${safeTeacher}_${tanggal}_${waktu.replace(/:/g,'-')}_${currentType}.jpg`;
+
+      const metadata = {
+        name: fileName,
+        parents: [folderId],
+        properties: {
+          nama: teacher, tanggal: tanggal, waktu: waktu, jenis: currentType,
+          lat: currentLocation ? currentLocation.lat : '',
+          lng: currentLocation ? currentLocation.lng : ''
+        }
+      };
+      await uploadToDrive(metadata, currentPhotoBlob);
+
+      statusEl.textContent = '✅ Absensi tersimpan ke Drive!';
+      statusEl.className = 'ok';
+      showStamp(currentType === 'masuk' ? 'Hadir' : 'Pulang');
+      resetPhotoForm();
+      loadHistoryGuru();
+    } catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ Gagal menyimpan: ' + err.message;
+      statusEl.className = 'err';
+    } finally {
+      checkCanSubmitGuru();
+    }
+  }
+
+  async function uploadToDrive(metadata, blob){
+    const boundary = 'absensi_boundary_' + Date.now();
+    const delimiter = '\r\n--' + boundary + '\r\n';
+    const closeDelim = '\r\n--' + boundary + '--';
+    const base64Data = await blobToBase64(blob);
+    const body =
+      delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) +
+      delimiter + 'Content-Type: ' + (blob.type || 'image/jpeg') + '\r\n' +
+      'Content-Transfer-Encoding: base64\r\n\r\n' + base64Data + closeDelim;
+
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'multipart/related; boundary="' + boundary + '"' },
+      body: body
+    });
+    if (!res.ok) throw new Error('Drive menolak unggahan (' + res.status + ')');
+    return res.json();
+  }
+
+  function blobToBase64(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Gagal mengonversi foto'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function resetPhotoForm(){
+    currentPhotoBlob = null;
+    document.getElementById('photoPreviewWrap').classList.add('hidden');
+    document.getElementById('photoBox').classList.remove('hidden');
+    document.getElementById('photoInput').value = '';
+  }
+
+  async function loadHistoryGuru(){
+    if (!folderId) return;
+    const today = new Date().toLocaleDateString('sv-SE');
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime desc&fields=files(id,name,properties,webViewLink)&pageSize=200`,
+        { headers: authHeaders() }
+      );
+      if (!res.ok) throw new Error('Gagal memuat riwayat');
+      const data = await res.json();
+      const todays = (data.files || []).filter(f => f.properties && f.properties.tanggal === today);
+
+      const tbody = document.getElementById('historyBodyGuru');
+      const emptyEl = document.getElementById('historyEmptyGuru');
+      tbody.innerHTML = '';
+
+      if (todays.length === 0) {
+        emptyEl.classList.remove('hidden');
+      } else {
+        emptyEl.classList.add('hidden');
+        todays.forEach(f => {
+          const p = f.properties;
+          const badgeClass = p.jenis === 'masuk' ? 'badge-masuk' : 'badge-pulang';
+          const badgeLabel = p.jenis === 'masuk' ? '🌅 Masuk' : '🌇 Pulang';
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            `<td>${escapeHtml(p.waktu || '')}</td>` +
+            `<td>${escapeHtml(p.nama || '')}</td>` +
+            `<td><span class="badge ${badgeClass}">${badgeLabel}</span></td>` +
+            `<td><a class="row-link" href="${f.webViewLink}" target="_blank" rel="noopener">Lihat</a></td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      const masukCount = todays.filter(f => f.properties.jenis === 'masuk').length;
+      const pulangCount = todays.filter(f => f.properties.jenis === 'pulang').length;
+      document.getElementById('historySummaryGuru').innerHTML =
+        `<b>${masukCount}</b> absen masuk &middot; <b>${pulangCount}</b> absen pulang hari ini`;
+    } catch(err){
+      console.error(err);
+    }
+  }
+  document.getElementById('btnRefreshHistoryGuru').addEventListener('click', loadHistoryGuru);
+
+  /* =====================================================================
+     MODE: ABSENSI KBM (kehadiran siswa -> Google Sheets)
+     ===================================================================== */
+
+  function getClasses(){
+    try { return JSON.parse(localStorage.getItem('kbm_classes') || '[]'); }
+    catch(e){ return []; }
+  }
+  function saveClasses(list){ localStorage.setItem('kbm_classes', JSON.stringify(list)); }
+
+  function getStudentsMap(){
+    try { return JSON.parse(localStorage.getItem('kbm_students') || '{}'); }
+    catch(e){ return {}; }
+  }
+  function saveStudentsMap(map){ localStorage.setItem('kbm_students', JSON.stringify(map)); }
+
+  function renderKelasOptions(){
+    const list = getClasses();
+    const select = document.getElementById('kelasSelect');
+    const current = select.value;
+    select.innerHTML = '<option value="">-- pilih kelas --</option>' +
+      list.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    if (list.includes(current)) select.value = current;
+
+    const ul = document.getElementById('kelasList');
+    ul.innerHTML = list.length ? list.map(n =>
+      `<li>${escapeHtml(n)}<button class="btn-remove" data-kelas="${escapeHtml(n)}" aria-label="Hapus ${escapeHtml(n)}">×</button></li>`
+    ).join('') : '<li class="empty-note">Belum ada kelas. Tambahkan di atas.</li>';
+  }
+
+  function loadStudentsForSelectedKelas(){
+    const kelas = document.getElementById('kelasSelect').value;
+    const map = getStudentsMap();
+    const names = kelas ? (map[kelas] || []) : [];
+    currentStudents = names.map(n => ({ name: n, status: 'H' }));
+    document.getElementById('studentsTextarea').value = names.join('\n');
+    document.getElementById('manageStudentsPanel').classList.add('hidden');
+
+    const showTools = !!kelas;
+    document.getElementById('btnToggleManageStudents').classList.toggle('hidden', !showTools);
+    document.getElementById('studentSection').classList.toggle('hidden', !showTools);
+    renderStudentRows();
+  }
+
+  function renderStudentRows(){
+    const wrap = document.getElementById('studentListWrap');
+    if (currentStudents.length === 0) {
+      wrap.innerHTML = '<div class="history-empty">Belum ada siswa untuk kelas ini. Tambahkan lewat "Kelola siswa kelas ini".</div>';
+    } else {
+      wrap.innerHTML = currentStudents.map((s, idx) => `
+        <div class="student-row">
+          <span class="student-name">${escapeHtml(s.name)}</span>
+          <div class="status-toggle" data-idx="${idx}">
+            <button type="button" class="stat-btn ${s.status==='H'?'active-h':''}" data-status="H">H</button>
+            <button type="button" class="stat-btn ${s.status==='I'?'active-i':''}" data-status="I">I</button>
+            <button type="button" class="stat-btn ${s.status==='S'?'active-s':''}" data-status="S">S</button>
+            <button type="button" class="stat-btn ${s.status==='A'?'active-a':''}" data-status="A">A</button>
+          </div>
+        </div>`).join('');
+    }
+    updateStudentSummary();
+    checkCanSubmitKbm();
+  }
+
+  function updateStudentSummary(){
+    const el = document.getElementById('studentSummary');
+    const total = currentStudents.length;
+    if (total === 0) { el.innerHTML = '0 siswa'; return; }
+    const c = tallyStatuses();
+    el.innerHTML = `<b>${total}</b> siswa &middot; <b>${c.H}</b> Hadir, <b>${c.I}</b> Izin, <b>${c.S}</b> Sakit, <b>${c.A}</b> Alpha`;
+  }
+
+  function tallyStatuses(){
+    const c = { H:0, I:0, S:0, A:0 };
+    currentStudents.forEach(s => { c[s.status] = (c[s.status]||0) + 1; });
+    return c;
+  }
+
+  document.getElementById('studentListWrap').addEventListener('click', (e) => {
+    const btn = e.target.closest('.stat-btn');
+    if (!btn) return;
+    const group = btn.closest('.status-toggle');
+    const idx = parseInt(group.dataset.idx, 10);
+    currentStudents[idx].status = btn.dataset.status;
+    renderStudentRows();
+  });
+  document.getElementById('btnMarkAllPresent').addEventListener('click', () => {
+    currentStudents.forEach(s => { s.status = 'H'; });
+    renderStudentRows();
+  });
+
+  async function ensureSpreadsheet(){
+    const q = encodeURIComponent(`name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Gagal mencari spreadsheet di Drive');
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      spreadsheetId = data.files[0].id;
+    } else {
+      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ properties: { title: SPREADSHEET_NAME }, sheets: [{ properties: { title: REKAP_SHEET } }] })
+      });
+      if (!createRes.ok) throw new Error('Gagal membuat spreadsheet');
+      const created = await createRes.json();
+      spreadsheetId = created.spreadsheetId;
+      await writeHeaderRow(REKAP_SHEET, REKAP_HEADER);
+    }
+    const link = document.getElementById('sheetLink');
+    link.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    link.classList.remove('hidden');
+  }
+
+  async function getSheetTitles(){
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Gagal membaca daftar tab sheet');
+    const data = await res.json();
+    return (data.sheets || []).map(s => s.properties.title);
+  }
+
+  async function ensureKelasSheet(kelas){
+    const titles = await getSheetTitles();
+    if (!titles.includes(kelas)) {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: kelas } } }] })
+      });
+      if (!res.ok) throw new Error('Gagal membuat tab untuk kelas ' + kelas);
+      await writeHeaderRow(kelas, KELAS_HEADER);
+    }
+  }
+
+  async function writeHeaderRow(sheetTitle, headerArr){
+    const range = encodeURIComponent(`'${sheetTitle}'!A1`);
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [headerArr] })
+    });
+  }
+
+  async function appendRows(sheetTitle, rows){
+    const range = encodeURIComponent(`'${sheetTitle}'!A1`);
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: rows })
+    });
+    if (!res.ok) throw new Error('Gagal menyimpan ke tab ' + sheetTitle);
+  }
+
+  function checkCanSubmitKbm(){
+    const teacher = document.getElementById('teacherSelect').value;
+    const kelas = document.getElementById('kelasSelect').value;
+    document.getElementById('btnSubmitKbm').disabled = !(teacher && kelas && currentStudents.length > 0);
+  }
+  document.getElementById('kelasSelect').addEventListener('change', loadStudentsForSelectedKelas);
+  document.getElementById('btnSubmitKbm').addEventListener('click', submitAbsensiKbm);
+
+  async function submitAbsensiKbm(){
+    const btn = document.getElementById('btnSubmitKbm');
+    const statusEl = document.getElementById('submitStatusKbm');
+    btn.disabled = true;
+    statusEl.className = '';
+    statusEl.textContent = 'Menyimpan ke Sheets...';
+    try {
+      const teacher = document.getElementById('teacherSelect').value;
+      const kelas = document.getElementById('kelasSelect').value;
+      const now = new Date();
+      const tanggal = now.toLocaleDateString('sv-SE');
+      const waktu = now.toLocaleTimeString('id-ID', { hour12:false });
+
+      await ensureKelasSheet(kelas);
+      const detailRows = currentStudents.map(s => [tanggal, waktu, teacher, s.name, STATUS_LABEL[s.status]]);
+      await appendRows(kelas, detailRows);
+
+      const c = tallyStatuses();
+      await appendRows(REKAP_SHEET, [[tanggal, waktu, teacher, kelas, c.H, c.I, c.S, c.A, currentStudents.length]]);
+
+      statusEl.textContent = '✅ Absensi kelas tersimpan!';
+      statusEl.className = 'ok';
+      showStamp('Tercatat');
+      loadHistoryKbm();
+    } catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ Gagal menyimpan: ' + err.message;
+      statusEl.className = 'err';
+    } finally {
+      checkCanSubmitKbm();
+    }
+  }
+
+  async function loadHistoryKbm(){
+    if (!spreadsheetId) return;
+    const today = new Date().toLocaleDateString('sv-SE');
+    try {
+      const range = encodeURIComponent(`'${REKAP_SHEET}'!A2:I2000`);
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Gagal memuat riwayat');
+      const data = await res.json();
+      const rows = (data.values || []).filter(r => r[0] === today).reverse();
+
+      const tbody = document.getElementById('historyBodyKbm');
+      const emptyEl = document.getElementById('historyEmptyKbm');
+      tbody.innerHTML = '';
+
+      if (rows.length === 0) {
+        emptyEl.classList.remove('hidden');
+      } else {
+        emptyEl.classList.add('hidden');
+        rows.forEach(r => {
+          const [, waktu, guru, kelas, h, i, s, a] = r;
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            `<td>${escapeHtml(waktu||'')}</td>` +
+            `<td>${escapeHtml(kelas||'')}</td>` +
+            `<td>${escapeHtml(guru||'')}</td>` +
+            `<td>` +
+              `<span class="badge badge-h">H ${h||0}</span>` +
+              `<span class="badge badge-i">I ${i||0}</span>` +
+              `<span class="badge badge-s">S ${s||0}</span>` +
+              `<span class="badge badge-a">A ${a||0}</span>` +
+            `</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      const totalSesi = rows.length;
+      const totalSiswa = rows.reduce((sum, r) => sum + (parseInt(r[8],10) || 0), 0);
+      document.getElementById('historySummaryKbm').innerHTML =
+        `<b>${totalSesi}</b> kelas diabsen &middot; <b>${totalSiswa}</b> data siswa tercatat hari ini`;
+    } catch(err){
+      console.error(err);
+    }
+  }
+  document.getElementById('btnRefreshHistoryKbm').addEventListener('click', loadHistoryKbm);
+
+  document.getElementById('btnToggleManageKelas').addEventListener('click', () => {
+    document.getElementById('manageKelasPanel').classList.toggle('hidden');
+  });
+  document.getElementById('btnConfirmAddKelas').addEventListener('click', () => {
+    const input = document.getElementById('newKelasInput');
+    const name = input.value.trim();
+    if (!name) return;
+    const list = getClasses();
+    if (!list.includes(name)) { list.push(name); saveClasses(list); renderKelasOptions(); }
+    input.value = '';
+  });
+  document.getElementById('kelasList').addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-remove')) {
+      const kelas = e.target.dataset.kelas;
+      saveClasses(getClasses().filter(n => n !== kelas));
+      const map = getStudentsMap();
+      delete map[kelas];
+      saveStudentsMap(map);
+      renderKelasOptions();
+      if (document.getElementById('kelasSelect').value === '') loadStudentsForSelectedKelas();
+    }
+  });
+
+  document.getElementById('btnToggleManageStudents').addEventListener('click', () => {
+    document.getElementById('manageStudentsPanel').classList.toggle('hidden');
+  });
+  document.getElementById('btnSaveStudents').addEventListener('click', () => {
+    const kelas = document.getElementById('kelasSelect').value;
+    if (!kelas) return;
+    const raw = document.getElementById('studentsTextarea').value;
+    const names = raw.split('\n').map(n => n.trim()).filter(Boolean);
+    const unique = [...new Set(names)];
+    const map = getStudentsMap();
+    map[kelas] = unique;
+    saveStudentsMap(map);
+    currentStudents = unique.map(n => ({ name: n, status: 'H' }));
+    renderStudentRows();
+    document.getElementById('manageStudentsPanel').classList.add('hidden');
+  });
+
+  // ---------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------
+  window.addEventListener('load', () => {
+    updateClock();
+    setInterval(updateClock, 1000);
+    renderTeacherOptions();
+    renderKelasOptions();
+    initGoogle();
+    document.getElementById('btnSignIn').addEventListener('click', () => {
+      if (!tokenClient) { showLoginError('Layanan Google belum siap, coba beberapa detik lagi.'); return; }
+      if (GOOGLE_CLIENT_ID.indexOf('GANTI_DENGAN') === 0) {
+        showLoginError('Client ID belum diisi. Buka file ini di editor, ganti GOOGLE_CLIENT_ID di bagian atas <script>, lalu muat ulang.');
+        return;
+      }
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    });
+  });
+</script>
+</body>
+</html>
