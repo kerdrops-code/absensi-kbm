@@ -335,7 +335,10 @@
           <button class="btn-retake" id="btnRetake">Ambil ulang</button>
         </div>
 
-        <div class="location-status" id="locationStatus">📍 Mendeteksi lokasi...</div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div class="location-status" id="locationStatus">📍 Mendeteksi lokasi...</div>
+          <button id="btnRefreshLocation" class="btn-link" style="padding:0;">🔄 Deteksi ulang lokasi</button>
+        </div>
 
         <button id="btnSubmitGuru" class="btn btn-primary" style="margin-top:18px;" disabled>Simpan Absensi</button>
         <div id="submitStatusGuru"></div>
@@ -393,7 +396,10 @@
           <div id="studentListWrap"></div>
         </div>
 
-        <div class="location-status" id="locationStatusKbm">📍 Mendeteksi lokasi...</div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div class="location-status" id="locationStatusKbm">📍 Mendeteksi lokasi...</div>
+          <button id="btnRefreshLocationKbm" class="btn-link" style="padding:0;">🔄 Deteksi ulang lokasi</button>
+        </div>
         <button id="btnSubmitKbm" class="btn btn-primary" style="margin-top:18px;" disabled>Simpan Absensi Kelas</button>
         <div id="submitStatusKbm"></div>
       </div>
@@ -442,8 +448,8 @@
   // misal Pondok + Lab Sekolah untuk kelas Sabtu). Absen diterima kalau berada
   // dalam radius SALAH SATU titik ini.
   const VALID_LOCATIONS = [
-    { name: 'Pondok', lat: -7.596759, lng: 112.781900, radius: 100 },
-    { name: 'Lab Sekolah', lat: -7.585263563299537, lng: 112.79171909684442, radius: 100 },
+    { name: 'Pondok', lat: -7.596759, lng: 112.781900, radius: 250 },
+    { name: 'Lab Sekolah', lat: -7.585263563299537, lng: 112.79171909684442, radius: 250 },
   ];
   const REKAP_SHEET = 'Rekap';
   const MASTER_SHEET = 'Master Siswa';
@@ -516,6 +522,8 @@
     ).join('') : '<li class="empty-note">Belum ada nama guru. Tambahkan di atas.</li>';
   }
 
+  document.getElementById('btnRefreshLocation').addEventListener('click', () => tryGetLocation());
+  document.getElementById('btnRefreshLocationKbm').addEventListener('click', () => tryGetLocation());
   document.getElementById('btnToggleManageTeacher').addEventListener('click', () => {
     document.getElementById('manageTeacherPanel').classList.toggle('hidden');
   });
@@ -695,10 +703,10 @@
     }
     const d = Math.round(currentLocation.distance);
     if (currentLocation.ok) {
-      statusEl.textContent = `📍 Lokasi terverifikasi di ${currentLocation.name} (${d} m)`;
+      statusEl.textContent = `📍 Lokasi terverifikasi di area ${currentLocation.name}`;
       statusEl.style.color = 'var(--ok)';
     } else {
-      statusEl.textContent = `📍 Di luar semua area yang diizinkan (terdekat: ${currentLocation.name}, ${d} m) — absen ditolak`;
+      statusEl.textContent = `📍 Kamu berada di luar area yang diizinkan — absen ditolak`;
       statusEl.style.color = 'var(--danger)';
     }
   }
