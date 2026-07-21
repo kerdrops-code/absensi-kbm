@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Absensi Sekolah Pondok</title>
+<title>Absensi Guru Pondok</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -261,7 +261,7 @@
 
   <header class="ledger-header">
     <div class="eyebrow" id="greetText">Selamat Pagi,</div>
-    <h1>Absensi Sekolah</h1>
+    <h1>Absensi Guru Pondok</h1>
     <div class="clock-row">
       <span id="dateText">-</span>
       <span class="dot">•</span>
@@ -428,7 +428,7 @@
   // PENTING: scope Drive diperluas dari 'drive.file' ke 'drive' supaya guru lain
   // (yang bukan pemilik/pembuat folder) tetap bisa menulis ke folder & spreadsheet
   // yang SAMA selama folder/spreadsheet itu sudah di-share ke akun mereka (Editor).
-  const COMBINED_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
+  const COMBINED_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid';
   const FOLDER_NAME = 'Absensi_Guru';
   const SPREADSHEET_NAME = 'Absensi_KBM';
   // ID folder & spreadsheet TETAP (dibuat sekali oleh admin, lalu di-share ke semua
