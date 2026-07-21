@@ -646,7 +646,7 @@
       folderId = FIXED_FOLDER_ID;
       const link = document.getElementById('driveFolderLink');
       link.href = `https://drive.google.com/drive/folders/${folderId}`;
-      link.classList.remove('hidden');
+      // link.classList.remove('hidden'); // disembunyikan permanen agar tampilan lebih clean
       return;
     }
     const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
@@ -667,7 +667,7 @@
     }
     const link = document.getElementById('driveFolderLink');
     link.href = `https://drive.google.com/drive/folders/${folderId}`;
-    link.classList.remove('hidden');
+    // link.classList.remove('hidden'); // disembunyikan permanen agar tampilan lebih clean
   }
 
   function distanceMeters(lat1, lng1, lat2, lng2){
@@ -1046,7 +1046,7 @@
       spreadsheetId = FIXED_SPREADSHEET_ID;
       const link = document.getElementById('sheetLink');
       link.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-      link.classList.remove('hidden');
+      // link.classList.remove('hidden'); // disembunyikan permanen agar tampilan lebih clean
       return;
     }
     const q = encodeURIComponent(`name='${SPREADSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
@@ -1068,7 +1068,7 @@
     }
     const link = document.getElementById('sheetLink');
     link.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-    link.classList.remove('hidden');
+    // link.classList.remove('hidden'); // disembunyikan permanen agar tampilan lebih clean
   }
 
   async function ensureMasterGuruSheet(){
