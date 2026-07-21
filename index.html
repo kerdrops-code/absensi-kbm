@@ -443,7 +443,7 @@
   const MAX_RADIUS_M = 100;
   const REKAP_SHEET = 'Rekap';
   const MASTER_SHEET = 'Master Siswa';
-  const MASTER_HEADER = ['Kelas','Nama Siswa'];
+  const MASTER_HEADER = ['Nama Siswa','Kelas'];
   const MASTER_GURU_SHEET = 'Master Guru';
   const MASTER_GURU_HEADER = ['Nama Guru'];
   const REKAP_HEADER = ['Tanggal','Waktu','Guru','Kelas','Hadir','Izin','Sakit','Alpha','Total','Latitude','Longitude','Jarak dari Sekolah (m)','Status Lokasi'];
@@ -860,8 +860,13 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_GURU_SHEET } } }] })
       });
-      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + LOG_GURU_SHEET + ': ' + (e.error?.message || res.status)); }
-      await writeHeaderRow(LOG_GURU_SHEET, LOG_GURU_HEADER);
+      if (!res.ok) {
+        const e = await res.json().catch(()=>({}));
+        const msg = e.error?.message || String(res.status);
+        if (!/sudah ada|already exists/i.test(msg)) throw new Error('Gagal membuat tab ' + LOG_GURU_SHEET + ': ' + msg);
+      } else {
+        await writeHeaderRow(LOG_GURU_SHEET, LOG_GURU_HEADER);
+      }
     }
   }
 
@@ -1068,27 +1073,38 @@
 
   async function ensureMasterGuruSheet(){
     const titles = await getSheetTitles();
-    if (!titles.includes(MASTER_GURU_SHEET)) {
-      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_GURU_SHEET } } }] })
-      });
-      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + MASTER_GURU_SHEET + ': ' + (e.error?.message || res.status)); }
-      await writeHeaderRow(MASTER_GURU_SHEET, MASTER_GURU_HEADER);
+    const found = titles.find(t => t.trim().toLowerCase() === MASTER_GURU_SHEET.toLowerCase());
+    if (found) return found;
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_GURU_SHEET } } }] })
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      const msg = e.error?.message || String(res.status);
+      if (!/sudah ada|already exists/i.test(msg)) throw new Error('Gagal membuat tab ' + MASTER_GURU_SHEET + ': ' + msg);
+      const titles2 = await getSheetTitles();
+      return titles2.find(t => t.trim().toLowerCase() === MASTER_GURU_SHEET.toLowerCase()) || MASTER_GURU_SHEET;
     }
+    await writeHeaderRow(MASTER_GURU_SHEET, MASTER_GURU_HEADER);
+    return MASTER_GURU_SHEET;
   }
 
   async function syncMasterGuru(){
     const statusEl = document.getElementById('syncStatusGuru');
     if (statusEl) { statusEl.textContent = 'Menyinkronkan daftar guru...'; statusEl.className = ''; }
     try {
-      await ensureMasterGuruSheet();
-      const range = encodeURIComponent(`'${MASTER_GURU_SHEET}'!A2:A2000`);
+      const realTitle = await ensureMasterGuruSheet();
+      const range = encodeURIComponent(`'${realTitle}'!A1:A5000`);
       const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
-      if (!res.ok) throw new Error('Gagal membaca tab ' + MASTER_GURU_SHEET);
+      if (!res.ok) throw new Error('Gagal membaca tab ' + realTitle);
       const data = await res.json();
-      const names = [...new Set((data.values || []).map(r => (r[0]||'').trim()).filter(Boolean))];
+      const raw = data.values || [];
+      // Cari baris header (sel bertuliskan "nama"/"nama guru"), lewati baris kosong di atasnya
+      let headerIdx = raw.findIndex(r => /^nama(\s*guru)?$/i.test((r[0]||'').trim()));
+      const dataRows = headerIdx >= 0 ? raw.slice(headerIdx + 1) : raw;
+      const names = [...new Set(dataRows.map(r => (r[0]||'').trim()).filter(Boolean))];
 
       if (names.length > 0) {
         saveTeachers(names);
@@ -1110,30 +1126,49 @@
 
   async function ensureMasterSheet(){
     const titles = await getSheetTitles();
-    if (!titles.includes(MASTER_SHEET)) {
-      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_SHEET } } }] })
-      });
-      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + MASTER_SHEET + ': ' + (e.error?.message || res.status)); }
-      await writeHeaderRow(MASTER_SHEET, MASTER_HEADER);
+    const found = titles.find(t => t.trim().toLowerCase() === MASTER_SHEET.toLowerCase());
+    if (found) return found;
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_SHEET } } }] })
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      const msg = e.error?.message || String(res.status);
+      if (!/sudah ada|already exists/i.test(msg)) throw new Error('Gagal membuat tab ' + MASTER_SHEET + ': ' + msg);
+      const titles2 = await getSheetTitles();
+      return titles2.find(t => t.trim().toLowerCase() === MASTER_SHEET.toLowerCase()) || MASTER_SHEET;
     }
+    await writeHeaderRow(MASTER_SHEET, MASTER_HEADER);
+    return MASTER_SHEET;
   }
 
   async function syncMasterSiswa(){
     const statusEl = document.getElementById('syncStatusKbm');
     if (statusEl) { statusEl.textContent = 'Menyinkronkan data siswa...'; statusEl.className = ''; }
     try {
-      await ensureMasterSheet();
-      const range = encodeURIComponent(`'${MASTER_SHEET}'!A2:B10000`);
+      const realTitle = await ensureMasterSheet();
+      const range = encodeURIComponent(`'${realTitle}'!A1:B5000`);
       const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
-      if (!res.ok) throw new Error('Gagal membaca tab ' + MASTER_SHEET);
+      if (!res.ok) throw new Error('Gagal membaca tab ' + realTitle);
       const data = await res.json();
-      const rows = (data.values || []).filter(r => r[0] && r[1]);
+      const raw = data.values || [];
+      // Cari baris header & deteksi otomatis kolom mana "Kelas" dan mana "Nama"
+      let kelasCol = 0, namaCol = 1, headerIdx = -1;
+      for (let i = 0; i < raw.length; i++) {
+        const a = (raw[i][0] || '').trim().toLowerCase();
+        const b = (raw[i][1] || '').trim().toLowerCase();
+        if (a === 'kelas') { kelasCol = 0; namaCol = 1; headerIdx = i; break; }
+        if (b === 'kelas') { kelasCol = 1; namaCol = 0; headerIdx = i; break; }
+        if (/^nama(\s*siswa)?$/.test(a)) { namaCol = 0; kelasCol = 1; headerIdx = i; break; }
+        if (/^nama(\s*siswa)?$/.test(b)) { namaCol = 1; kelasCol = 0; headerIdx = i; break; }
+      }
+      const dataRows = headerIdx >= 0 ? raw.slice(headerIdx + 1) : raw;
+      const rows = dataRows.filter(r => r[kelasCol] && r[namaCol]).map(r => [r[namaCol], r[kelasCol]]);
 
       const map = {};
-      rows.forEach(([kelas, nama]) => {
+      rows.forEach(([nama, kelas]) => {
         const k = kelas.trim(), n = nama.trim();
         if (!k || !n) return;
         if (!map[k]) map[k] = [];
@@ -1178,8 +1213,13 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: kelas } } }] })
       });
-      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab untuk kelas ' + kelas + ': ' + (e.error?.message || res.status)); }
-      await writeHeaderRow(kelas, KELAS_HEADER);
+      if (!res.ok) {
+        const e = await res.json().catch(()=>({}));
+        const msg = e.error?.message || String(res.status);
+        if (!/sudah ada|already exists/i.test(msg)) throw new Error('Gagal membuat tab untuk kelas ' + kelas + ': ' + msg);
+      } else {
+        await writeHeaderRow(kelas, KELAS_HEADER);
+      }
     }
   }
 
