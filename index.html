@@ -860,7 +860,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_GURU_SHEET } } }] })
       });
-      if (!res.ok) throw new Error('Gagal membuat tab ' + LOG_GURU_SHEET);
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + LOG_GURU_SHEET + ': ' + (e.error?.message || res.status)); }
       await writeHeaderRow(LOG_GURU_SHEET, LOG_GURU_HEADER);
     }
   }
@@ -1074,7 +1074,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_GURU_SHEET } } }] })
       });
-      if (!res.ok) throw new Error('Gagal membuat tab ' + MASTER_GURU_SHEET);
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + MASTER_GURU_SHEET + ': ' + (e.error?.message || res.status)); }
       await writeHeaderRow(MASTER_GURU_SHEET, MASTER_GURU_HEADER);
     }
   }
@@ -1116,7 +1116,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: MASTER_SHEET } } }] })
       });
-      if (!res.ok) throw new Error('Gagal membuat tab ' + MASTER_SHEET);
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab ' + MASTER_SHEET + ': ' + (e.error?.message || res.status)); }
       await writeHeaderRow(MASTER_SHEET, MASTER_HEADER);
     }
   }
@@ -1165,7 +1165,7 @@
 
   async function getSheetTitles(){
     const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, { headers: authHeaders() });
-    if (!res.ok) throw new Error('Gagal membaca daftar tab sheet');
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membaca daftar tab sheet: ' + (e.error?.message || res.status)); }
     const data = await res.json();
     return (data.sheets || []).map(s => s.properties.title);
   }
@@ -1178,7 +1178,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: kelas } } }] })
       });
-      if (!res.ok) throw new Error('Gagal membuat tab untuk kelas ' + kelas);
+      if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal membuat tab untuk kelas ' + kelas + ': ' + (e.error?.message || res.status)); }
       await writeHeaderRow(kelas, KELAS_HEADER);
     }
   }
