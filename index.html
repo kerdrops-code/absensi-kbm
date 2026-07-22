@@ -1141,6 +1141,26 @@
     }
   }
 
+  async function ensureRekapSheet(){
+    const titles = await getSheetTitles();
+    const found = titles.find(t => t.trim().toLowerCase() === REKAP_SHEET.toLowerCase());
+    if (found) return found;
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: REKAP_SHEET } } }] })
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      const msg = e.error?.message || String(res.status);
+      if (!/sudah ada|already exists/i.test(msg)) throw new Error('Gagal membuat tab ' + REKAP_SHEET + ': ' + msg);
+      const titles2 = await getSheetTitles();
+      return titles2.find(t => t.trim().toLowerCase() === REKAP_SHEET.toLowerCase()) || REKAP_SHEET;
+    }
+    await writeHeaderRow(REKAP_SHEET, REKAP_HEADER);
+    return REKAP_SHEET;
+  }
+
   async function ensureMasterSheet(){
     const titles = await getSheetTitles();
     const found = titles.find(t => t.trim().toLowerCase() === MASTER_SHEET.toLowerCase());
@@ -1256,7 +1276,7 @@
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: rows })
     });
-    if (!res.ok) throw new Error('Gagal menyimpan ke tab ' + sheetTitle);
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error('Gagal menyimpan ke tab ' + sheetTitle + ': ' + (e.error?.message || res.status)); }
   }
 
   function checkCanSubmitKbm(){
@@ -1294,7 +1314,8 @@
       await appendRows(kelas, detailRows);
 
       const c = tallyStatuses();
-      await appendRows(REKAP_SHEET, [[tanggal, waktu, teacher, kelas, c.H, c.I, c.S, c.A, currentStudents.length, currentLocation.lat, currentLocation.lng, distRounded, currentLocation.name]]);
+      const rekapTitle = await ensureRekapSheet();
+      await appendRows(rekapTitle, [[tanggal, waktu, teacher, kelas, c.H, c.I, c.S, c.A, currentStudents.length, currentLocation.lat, currentLocation.lng, distRounded, currentLocation.name]]);
 
       statusEl.textContent = '✅ Absensi kelas tersimpan!';
       statusEl.className = 'ok';
@@ -1313,7 +1334,14 @@
     if (!spreadsheetId) return;
     const today = new Date().toLocaleDateString('sv-SE');
     try {
-      const range = encodeURIComponent(`'${REKAP_SHEET}'!A2:I2000`);
+      const titles = await getSheetTitles();
+      const realTitle = titles.find(t => t.trim().toLowerCase() === REKAP_SHEET.toLowerCase());
+      if (!realTitle) {
+        document.getElementById('historyBodyKbm').innerHTML = '';
+        document.getElementById('historyEmptyKbm').classList.remove('hidden');
+        return;
+      }
+      const range = encodeURIComponent(`'${realTitle}'!A2:M5000`);
       const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: authHeaders() });
       if (!res.ok) throw new Error('Gagal memuat riwayat');
       const data = await res.json();
